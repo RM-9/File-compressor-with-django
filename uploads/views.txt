@@ -1,0 +1,49 @@
+from django.shortcuts import render,redirect, get_object_or_404
+from . models import Destination,Expense
+
+# from .utils import convert_to_inr
+
+# Create your views here.
+
+def add_destination(request):
+    if request.method == 'POST':
+        name = request.POST['name']
+        start_date = request.POST['start_date']
+        end_date = request.POST['end_date']
+        is_foreign = 'is_foreign' in request.POST
+        Destination.objects.create(name=name, start_date=start_date, end_date=end_date, is_foreign=is_foreign)
+        return redirect('destination_list')
+    return render(request, 'add_destination.html')
+
+def add_expense(request, destination_id):
+    destination = get_object_or_404(Destination, id=destination_id)
+    if request.method == 'POST':
+        description = request.POST['description']
+        amount = float(request.POST['amount'])
+        currency = request.POST['currency']
+        converted_amount = None
+
+        if destination.is_foreign :
+            converted_amount = convert_to_inr(amount, currency)
+            currency = 'INR'  # Store INR as currency
+        else:
+            converted_amount = amount
+
+        # Save the expense with both original and converted amounts
+        Expense.objects.create(destination=destination, description=description, amount=amount, currency=currency, converted_amount=converted_amount)
+        return redirect('expense_list', destination_id=destination.id)
+
+    return render(request, 'add_expense.html', {'destination': destination})
+
+def destination_list(request):
+    destinations = Destination.objects.all()
+    return render(request, 'destination_list.html', {'destinations': destinations})
+
+
+def expense_list(request, destination_id):
+    destination = get_object_or_404(Destination, id=destination_id)
+    expenses = destination.expenses.all()
+    return render(request, 'expense_list.html', {'destination': destination, 'expenses': expenses})
+
+
+
